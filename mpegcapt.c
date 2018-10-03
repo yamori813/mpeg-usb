@@ -1,5 +1,9 @@
-#include <stdio.h>
+/*
+ * Copyright (c) 2018 Hiroki Mori
+ *
+ */
 
+#include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -11,6 +15,8 @@
 
 #define MAXTANS 2
 
+libusb_context *ctx = NULL;
+libusb_device_handle *dev_handle;
 int dumpfd;
 
 static void read_callback(struct libusb_transfer *transfer)
@@ -125,10 +131,6 @@ int writemems(libusb_device_handle *dev, int address, int *data, int count)
 			cmdbuf[2 + 7 * i] = (data[pos] >> 8) & 0xff;
 			cmdbuf[3 + 7 * i] = (data[pos] >> 16) & 0xff;
 			cmdbuf[4 + 7 * i] = (data[pos] >> 24) & 0xff;
-/*
-printf("MORI MORI %x\n", data[pos]);
-printf("MORI MORI %x\n", (data[pos] >> 16) & 0xff);
-*/
 			cmdbuf[5 + 7 * i] = (address >> 16) & 0xff;
 			cmdbuf[6 + 7 * i] = (address >> 8) & 0xff;
 			cmdbuf[7 + 7 * i] = address & 0xff;
@@ -481,15 +483,19 @@ signalhandler(int signum)
 {
 	close(dumpfd);
 
+	libusb_release_interface(dev_handle, 0);
+
+	libusb_close(dev_handle);
+
+	libusb_exit(ctx);
+
 	exit(1);
 }
 
 int main(int argc, char *argv[])
 {
-	libusb_context *ctx = NULL;
 	libusb_device **devs;
 	libusb_device *udev;
-	libusb_device_handle *dev_handle;
 	int r, cnt;
 	unsigned char cmdbuf[128];
 	unsigned char buf[1024];
@@ -500,6 +506,11 @@ int main(int argc, char *argv[])
 	int i;
 	int vid, pid;
 	int reg;
+
+	if (argc != 3) {
+		printf("usage: mpegcapt <cx firmware> <mpeg file>\n");
+		exit(-1);
+	}
 
 	signal(SIGINT, signalhandler);
 
@@ -566,22 +577,10 @@ int main(int argc, char *argv[])
 	readcx25837(dev_handle, addr, 1, buf);
 	printf("I2C read from cx25837 Video Decoder Core General Status 2(%x) %x\n", addr, buf[0]);
 
-	reg = 0x0048;
-	res = readreg(dev_handle, reg);
-	printf("%04x %08x\n", reg, res);
-
 	writereg(dev_handle, 0x0048, 0xffffffff);
 
 	gpio_dir(dev_handle, 0xffffffff,0x00000088);
 	gpio_out(dev_handle, 0xffffffff,0x00000008);
-
-	reg = 0x9020;
-	res = readreg(dev_handle, reg);
-	printf("%04x %08x\n", reg, res);
-
-	reg = 0x900c;
-	res = readreg(dev_handle, reg);
-	printf("%04x %08x\n", reg, res);
 
 	cmdbuf[0] = 0xdd;
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 1, &trns, 0);
@@ -610,6 +609,7 @@ int main(int argc, char *argv[])
 	int fd = open(argv[1], O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "** Couldn't open file for reading: %s\n", argv[1]);
+		exit(-1);
 	} else {
 		
 		ssize_t n;
@@ -633,30 +633,10 @@ int main(int argc, char *argv[])
 	cmdbuf[1] = 0;
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 2, &trns, 0);
 
-	res = readreg(dev_handle, 0x9020);
-	printf("%x %08x\n", 0x9020, res);
-/*
-writemem(dev_handle, 0x45, 0x80);
-writemem(dev_handle, 0x47, 0x1000);
-writemem(dev_handle, 0x44, 0x03);
-mbox = readmem(dev_handle, 0x45);
-printf("mail box %x\n", mbox);
-
-mbox = readmem(dev_handle, 0x44);
-printf("mail box %x\n", mbox);
-mbox = readmem(dev_handle, 0x45);
-printf("mail box %x\n", mbox);
-mbox = readmem(dev_handle, 0x46);
-printf("mail box %x\n", mbox);
-mbox = readmem(dev_handle, 0x47);
-printf("mail box %x\n", mbox);
-*/
-
 	pingenc(dev_handle);
 
 	writereg(dev_handle, 0x0048, 0xbfffffff);
-	res = readreg(dev_handle, 0x0048);
-	printf("%04x %08x\n", 0x0048, res);
+
 	preconfenc(dev_handle);
 	confenc(dev_handle);
 	startenc(dev_handle);
@@ -693,22 +673,12 @@ printf("mail box %x\n", mbox);
 	else
 		printf("stream start error\n");
 
-/*
-mpeg = (unsigned char *)malloc(0x20000);
-while(1) {
-res = libusb_bulk_transfer(dev_handle, 0x84, mpeg, 0x20000, &trns, 0);
-printf("MORI MORI %d %d\n", res, trns);
-}
-*/
-	dumpfd = open("video.mpeg", O_RDWR | O_CREAT, 0644);
+	dumpfd = open(argv[2], O_RDWR | O_CREAT, 0644);
 
 	while (1)
 		libusb_handle_events(ctx);
 
-	libusb_release_interface(dev_handle, 0);
+	/* not reach hier */
 
-	libusb_close(dev_handle);
-
-	libusb_exit(ctx);
 }
 
