@@ -300,9 +300,9 @@ void pingenc(libusb_device_handle *dev)
 
 	mkcmd(data, 0x80, NULL, 0);
 	if (enccmd(dev, data, sizeof(data)) == 0)
-		printf("encoder arrive\n");
+		printf("cx23416 arrive\n");
 	else
-		printf("encoder error\n");
+		printf("cx23416 error\n");
 }
 
 void confenc(libusb_device_handle *dev)
@@ -344,7 +344,7 @@ void confenc(libusb_device_handle *dev)
 		printf("confenc error\n");
 
 	para[0] = 480;
-	para[1] = 700;
+	para[1] = 720;
 	mkcmd(data, 0x91, para, 2);   // CX2341X_ENC_SET_FRAME_SIZE
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
@@ -363,14 +363,39 @@ void confenc(libusb_device_handle *dev)
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
 
-	para[0] = 10;
+	para[0] = 0;
 	mkcmd(data, 0xb9, para, 1);   // CX2341X_ENC_SET_STREAM_TYPE
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
 
-	para[0] = 1;
-	para[1] = 0x40b9;
-	mkcmd(data, 0xbd, para, 2);   // CX2341X_ENC_SET_AUDIO_PROPERTIES
+	para[0] = 0;
+	para[1] = 6000000;
+	para[2] = 8000000 / 400;
+	para[3] = 0;
+	para[4] = 0;
+	para[5] = 0;
+	mkcmd(data, 0x95, para, 6);   // CX2341X_ENC_SET_BIT_RATE
+	if (enccmd(dev, data, sizeof(data)) != 0)
+		printf("confenc error\n");
+
+	para[0] = 0x0f;
+	para[1] = 0x03;
+	mkcmd(data, 0x97, para, 2);   // CX2341X_ENC_SET_GOP_PROPERTIES
+	if (enccmd(dev, data, sizeof(data)) != 0)
+		printf("confenc error\n");
+
+	para[0] = 0x00;
+	mkcmd(data, 0xb1, para, 1);   // CX2341X_ENC_SET_3_2_PULLDOWN
+	if (enccmd(dev, data, sizeof(data)) != 0)
+		printf("confenc error\n");
+
+	para[0] = 0x00;
+	mkcmd(data, 0xc5, para, 1);   // CX2341X_ENC_SET_GOP_CLOSURE
+	if (enccmd(dev, data, sizeof(data)) != 0)
+		printf("confenc error\n");
+
+	para[0] = 0x40b9;
+	mkcmd(data, 0xbd, para, 1);   // CX2341X_ENC_SET_AUDIO_PROPERTIES
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
 
@@ -653,7 +678,12 @@ int main(int argc, char *argv[])
 	cmdbuf[0] = 0x0c;
 	writecx25837(dev_handle, addr, 1, cmdbuf);
 
-	printf("decoder start\n");
+	// Pin Control 3
+	addr = 0x116;
+	cmdbuf[0] = 1 << 2;   // PLL_CLK_OUT_EN
+	writecx25837(dev_handle, addr, 1, cmdbuf);
+
+	printf("video decoder start\n");
 
 	unsigned char * mpeg;
 	struct libusb_transfer *transfer[MAXTANS];
@@ -669,9 +699,9 @@ int main(int argc, char *argv[])
 	cmdbuf[0] = 0x36;
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 1, &trns, 0);
 	if (res == 0)
-		printf("stream start\n");
+		printf("usb stream start\n");
 	else
-		printf("stream start error\n");
+		printf("usv stream start error\n");
 
 	dumpfd = open(argv[2], O_RDWR | O_CREAT, 0644);
 
