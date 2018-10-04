@@ -693,7 +693,7 @@ int main(int argc, char *argv[])
 			swapbyte(data, 0x8000 / 4);
 			res = libusb_bulk_transfer(dev_handle, 0x02,
 			    (unsigned char *)data, 0x8000, &trns, 0);
-			if (res != 0 || trns != 0x2000 * 4)
+			if (res != 0 || trns != 0x8000)
 				printf("CX23416 firmware down load error\n");
 		}
 		close(fd);
