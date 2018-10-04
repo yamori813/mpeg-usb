@@ -517,6 +517,32 @@ signalhandler(int signum)
 	exit(1);
 }
 
+void inputsel(libusb_device_handle *dev, int in)
+{
+	unsigned char cmdbuf[128];
+	unsigned char buf[1024];
+	int addr;
+
+	printf("Input is %s\n", in == 0 ? "Composite" : "S-Video");
+
+	// Video Input Control
+	addr = 0x103;
+	cmdbuf[0] = in == 0 ? 0x00 : (1 | (2 << 6));
+	writecx25837(dev_handle, addr, 1, cmdbuf);
+
+	// Video Mode Control 2
+	addr = 0x401;
+	readcx25837(dev_handle, addr, 1, buf);
+	cmdbuf[0] = (buf[0] & ~0x06) | (in == 0 ? 0 : (1 << 1));
+	writecx25837(dev_handle, addr, 1, cmdbuf);
+
+	// AFE Control 2
+	addr = 0x105;
+	readcx25837(dev_handle, addr, 1, buf);
+	cmdbuf[0] = (buf[0] & ~0x0e) | (in == 0 ? 0 : (6 << 1));
+	writecx25837(dev_handle, addr, 1, cmdbuf);
+}
+
 int main(int argc, char *argv[])
 {
 	libusb_device **devs;
@@ -666,12 +692,7 @@ int main(int argc, char *argv[])
 	confenc(dev_handle);
 	startenc(dev_handle);
 
-	// Quick Start Video
-
-	// Video Input Control
-	addr = 0x103;
-	cmdbuf[0] = 0x00;
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	inputsel(dev_handle, 1);
 
 	// Pin Control 2
 	addr = 0x115;
@@ -680,7 +701,7 @@ int main(int argc, char *argv[])
 
 	// Pin Control 3
 	addr = 0x116;
-	cmdbuf[0] = 1 << 2;   // PLL_CLK_OUT_EN
+	cmdbuf[0] = 1 << 2;   // PLL_CLK_OUT_EN for Audio
 	writecx25837(dev_handle, addr, 1, cmdbuf);
 
 	printf("video decoder start\n");
