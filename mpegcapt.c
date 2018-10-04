@@ -10,6 +10,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "libusb.h"
 
@@ -543,6 +544,23 @@ void inputsel(libusb_device_handle *dev, int in)
 	i2cwrite(dev_handle, addr, 1, cmdbuf);
 }
 
+void swapbyte(unsigned char *buf, int size)
+{
+	int i;
+	unsigned a, b, c, d;
+
+	for (i = 0;i < size; ++i) {
+		a = buf[i * 4];
+		b = buf[i * 4 + 1];
+		c = buf[i * 4 + 2];
+		d = buf[i * 4 + 3];
+		buf[i * 4 + 3] = a;
+		buf[i * 4 + 2] = b;
+		buf[i * 4 + 1] = c;
+		buf[i * 4] = d;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	libusb_device **devs;
@@ -663,18 +681,16 @@ int main(int argc, char *argv[])
 	cmdbuf[1] = 0;
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 2, &trns, 0);
 
-	unsigned int data[0x2000];
+	unsigned char data[0x8000];
 	int fd = open(argv[1 + fileoff], O_RDONLY);
 	if (fd == -1) {
-		fprintf(stderr, "** Couldn't open file for reading: %s\n", argv[1 + fileoff]);
+		fprintf(stderr, "** Couldn't open file for reading: %s\n",
+		    argv[1 + fileoff]);
 		exit(-1);
 	} else {
-		
 		ssize_t n;
-		int i;
-		while((n = read(fd, data, 0x2000 * 4)) != 0) {
-			for(i = 0; i < 0x2000; ++i)
-				data[i] = htonl(data[i]);
+		while((n = read(fd, data, 0x8000)) != 0) {
+			swapbyte(data, 0x8000 / 4);
 			res = libusb_bulk_transfer(dev_handle, 0x02,
 			    (unsigned char *)data, 0x8000, &trns, 0);
 			if (res != 0 || trns != 0x2000 * 4)
