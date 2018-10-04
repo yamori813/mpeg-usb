@@ -394,7 +394,7 @@ void confenc(libusb_device_handle *dev)
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
 
-	para[0] = 0x40b9;
+	para[0] = 0x40b8;   // 44.1K
 	mkcmd(data, 0xbd, para, 1);   // CX2341X_ENC_SET_AUDIO_PROPERTIES
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
