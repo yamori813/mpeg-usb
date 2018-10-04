@@ -29,7 +29,7 @@ static void read_callback(struct libusb_transfer *transfer)
 	res = libusb_submit_transfer(transfer);
 }
 
-int writecx25837(libusb_device_handle *dev, int addr, int size, unsigned char *buf)
+int i2cwrite(libusb_device_handle *dev, int addr, int size, unsigned char *buf)
 {
 	int res = -1;
 	unsigned char cmdbuf[64];
@@ -44,15 +44,15 @@ int writecx25837(libusb_device_handle *dev, int addr, int size, unsigned char *b
 	memcpy(&cmdbuf[5], buf, size);
 	res = libusb_bulk_transfer(dev, 0x01, cmdbuf, size + 5, &trns, 0);
 	if (res != 0 || trns != size + 5)
-		printf("writecx25837 error\n");
+		printf("i2cwrite error\n");
 	res = libusb_bulk_transfer(dev, 0x81, inbuf, sizeof(inbuf), &trns, 0);
 	if (res != 0 || trns != 1 || inbuf[0] != 8)
-		printf("writecx25837 ack error\n");
+		printf("i2cwrite ack error\n");
 
 	return res;
 }
 
-int readcx25837(libusb_device_handle *dev, int addr, int size, unsigned char *buf)
+int i2cread(libusb_device_handle *dev, int addr, int size, unsigned char *buf)
 {
 	int res = -1;
 	unsigned char cmdbuf[64];
@@ -300,9 +300,9 @@ void pingenc(libusb_device_handle *dev)
 
 	mkcmd(data, 0x80, NULL, 0);
 	if (enccmd(dev, data, sizeof(data)) == 0)
-		printf("cx23416 arrive\n");
+		printf("CX23416 arrive\n");
 	else
-		printf("cx23416 error\n");
+		printf("CX23416 error\n");
 }
 
 void confenc(libusb_device_handle *dev)
@@ -471,9 +471,9 @@ void startenc(libusb_device_handle *dev)
 	para[1] = 0x13;
 	mkcmd(data, 0x81, para, 2);
 	if (enccmd(dev, data, sizeof(data)) == 0)
-		printf("cx23416 start\n");
+		printf("CX23416 start\n");
 	else
-		printf("cx23416 start error\n");
+		printf("CX23416 start error\n");
 }
 
 void dumpallreg(libusb_device_handle *dev_handle)
@@ -528,19 +528,19 @@ void inputsel(libusb_device_handle *dev, int in)
 	// Video Input Control
 	addr = 0x103;
 	cmdbuf[0] = in == 0 ? 0x00 : (1 | (2 << 6));
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 
 	// Video Mode Control 2
 	addr = 0x401;
-	readcx25837(dev_handle, addr, 1, buf);
+	i2cread(dev_handle, addr, 1, buf);
 	cmdbuf[0] = (buf[0] & ~0x06) | (in == 0 ? 0 : (1 << 1));
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 
 	// AFE Control 2
 	addr = 0x105;
-	readcx25837(dev_handle, addr, 1, buf);
+	i2cread(dev_handle, addr, 1, buf);
 	cmdbuf[0] = (buf[0] & ~0x0e) | (in == 0 ? 0 : (6 << 1));
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 }
 
 int main(int argc, char *argv[])
@@ -621,17 +621,19 @@ int main(int argc, char *argv[])
 	}
 
 	addr = 0x100;
-	readcx25837(dev_handle, addr, 2, buf);
-	printf("I2C read from cx25837 Device ID(%x) %x %x\n", addr,
+	i2cread(dev_handle, addr, 2, buf);
+	printf("I2C read Device ID(%x) %x %x\n", addr,
 	    buf[0], buf[1]);
+	printf("Encoder Chip is CX25%2x%1d Rev %d\n", buf[1], buf[0] >> 4,
+	    buf[0] & 0xf);
 
 	addr = 0x40d;
-	readcx25837(dev_handle, addr, 1, buf);
-	printf("I2C read from cx25837 Video Decoder Core General Status 1(%x) %x\n", addr, buf[0]);
+	i2cread(dev_handle, addr, 1, buf);
+	printf("I2C read Video Decoder Core General Status 1(%x) %x\n", addr, buf[0]);
 
 	addr = 0x40e;
-	readcx25837(dev_handle, addr, 1, buf);
-	printf("I2C read from cx25837 Video Decoder Core General Status 2(%x) %x\n", addr, buf[0]);
+	i2cread(dev_handle, addr, 1, buf);
+	printf("I2C read Video Decoder Core General Status 2(%x) %x\n", addr, buf[0]);
 
 	writereg(dev_handle, 0x0048, 0xffffffff);
 
@@ -676,11 +678,11 @@ int main(int argc, char *argv[])
 			res = libusb_bulk_transfer(dev_handle, 0x02,
 			    (unsigned char *)data, 0x8000, &trns, 0);
 			if (res != 0 || trns != 0x2000 * 4)
-				printf("cx23416 firmware down load error\n");
+				printf("CX23416 firmware down load error\n");
 		}
 		close(fd);
 	}
-	printf("cx23416 firmware downloaded\n");
+	printf("CX23416 firmware downloaded\n");
 
 	writereg(dev_handle, 0x9054, 0xffffffff);
 	writereg(dev_handle, 0x9058, 0xffffffe8);
@@ -702,12 +704,12 @@ int main(int argc, char *argv[])
 	// Pin Control 2
 	addr = 0x115;
 	cmdbuf[0] = 0x0c;
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 
 	// Pin Control 3
 	addr = 0x116;
 	cmdbuf[0] = 1 << 2;   // PLL_CLK_OUT_EN for Audio
-	writecx25837(dev_handle, addr, 1, cmdbuf);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 
 	printf("video decoder start\n");
 
