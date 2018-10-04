@@ -557,8 +557,13 @@ int main(int argc, char *argv[])
 	int i;
 	int vid, pid;
 	int reg;
+	int input = 0;
+	int fileoff = 0;
 
-	if (argc != 3) {
+	if (argc == 4 && strcmp(argv[1], "-s") == 0) {
+		input = 1;
+		fileoff = 1;
+	} else if (argc != 3) {
 		printf("usage: mpegcapt <cx firmware> <mpeg file>\n");
 		exit(-1);
 	}
@@ -657,9 +662,9 @@ int main(int argc, char *argv[])
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 2, &trns, 0);
 
 	unsigned int data[0x2000];
-	int fd = open(argv[1], O_RDONLY);
+	int fd = open(argv[1 + fileoff], O_RDONLY);
 	if (fd == -1) {
-		fprintf(stderr, "** Couldn't open file for reading: %s\n", argv[1]);
+		fprintf(stderr, "** Couldn't open file for reading: %s\n", argv[1 + fileoff]);
 		exit(-1);
 	} else {
 		
@@ -692,7 +697,7 @@ int main(int argc, char *argv[])
 	confenc(dev_handle);
 	startenc(dev_handle);
 
-	inputsel(dev_handle, 1);
+	inputsel(dev_handle, input);
 
 	// Pin Control 2
 	addr = 0x115;
@@ -724,7 +729,7 @@ int main(int argc, char *argv[])
 	else
 		printf("usv stream start error\n");
 
-	dumpfd = open(argv[2], O_RDWR | O_CREAT, 0644);
+	dumpfd = open(argv[2 + fileoff], O_RDWR | O_CREAT, 0644);
 
 	while (1)
 		libusb_handle_events(ctx);
