@@ -198,11 +198,6 @@ void writereg(libusb_device_handle *dev, int address, unsigned int val)
 	cmdbuf[5] = 0x00;
 	cmdbuf[6] = address >> 8;
 	cmdbuf[7] = address & 0xff;
-/*
-	printf("w %02x %02x %02x %02x %02x %02x %02x %02x\n", 
-		   cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3],
-		   cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
-*/
 	res = libusb_bulk_transfer(dev, 0x01, cmdbuf, 8, &trns, timeout);
 	if (res !=0)
 		printf("writereg error\n");
