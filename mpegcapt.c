@@ -299,11 +299,26 @@ void pingenc(libusb_device_handle *dev)
 {
 	int data[16];
 
-	mkcmd(data, 0x80, NULL, 0);
+	mkcmd(data, 0x80, NULL, 0);   // CX2341X_ENC_PING_FW
 	if (enccmd(dev, data, sizeof(data)) == 0)
 		printf("CX23416 arrive\n");
 	else
 		printf("CX23416 error\n");
+}
+
+void getverenc(libusb_device_handle *dev)
+{
+	int data[16];
+	int res;
+
+	mkcmd(data, 0xc4, NULL, 0);   // CX2341X_ENC_GET_VERSION
+	if (enccmd(dev, data, sizeof(data)) == 0) {
+		res = readmem(dev, 0x48);
+		printf("CX23416 firmware version %d.%d.%d\n",
+		    res >> 24, (res >> 16) & 0xff, res & 0xffff);
+	}
+	else
+		printf("get version error\n");
 }
 
 void confenc(libusb_device_handle *dev)
@@ -708,6 +723,7 @@ int main(int argc, char *argv[])
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 2, &trns, 0);
 
 	pingenc(dev_handle);
+	getverenc(dev_handle);
 
 	writereg(dev_handle, 0x0048, 0xbfffffff);
 
