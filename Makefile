@@ -2,7 +2,7 @@
 #
 #
 
-LIBUSBDIR="../libusb1"
+LIBUSBDIR=.
 
 mpegcapt: mpegcapt.c
 	cc -o mpegcapt mpegcapt.c -I$(LIBUSBDIR) -L$(LIBUSBDIR) -l usb
