@@ -580,6 +580,8 @@ int main(int argc, char *argv[])
 {
 	libusb_device **devs;
 	libusb_device *udev;
+	struct libusb_device_descriptor desc;
+	unsigned char strDesc[256];
 	int r, cnt;
 	unsigned char cmdbuf[128];
 	unsigned char buf[1024];
@@ -609,8 +611,7 @@ int main(int argc, char *argv[])
 
 	vid = -1;
 	for (i = 0; i < cnt; ++i) {
-		struct libusb_device_descriptor desc;
-		int r = libusb_get_device_descriptor(devs[i], &desc);
+		r = libusb_get_device_descriptor(devs[i], &desc);
 		if ((desc.idVendor == 0x04bb && desc.idProduct == 0x0516) ||
 		    (desc.idVendor == 0x0411 && desc.idProduct == 0x0065)) {
 			vid = desc.idVendor;
@@ -627,6 +628,10 @@ int main(int argc, char *argv[])
 	dev_handle = libusb_open_device_with_vid_pid(ctx, vid, pid);
 
 	libusb_claim_interface(dev_handle, 0);
+
+	r = libusb_get_string_descriptor_ascii(dev_handle,
+	    desc.iProduct, strDesc, 256);
+	printf("found %s\n", strDesc);
 
 	cmdbuf[0] = 0xde;   // Encoder resume
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 1, &trns, 0);
