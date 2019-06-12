@@ -658,6 +658,18 @@ int main(int argc, char *argv[])
 	i2cread(dev_handle, addr, 1, buf);
 	printf("I2C read Video Decoder Core General Status 2(%x) %x\n", addr, buf[0]);
 
+	addr = 0x127;
+	i2cread(dev_handle, addr, 1, buf);
+	printf("Pin Configuration 12 %02x\n", buf[0]);
+	addr = 0x128;
+	i2cread(dev_handle, addr, 3, buf);
+	printf("VID_COUNT %06x\n", (buf[2] << 16) | (buf[1] << 8) | buf[0]);
+
+	addr = 0x12c;
+	i2cread(dev_handle, addr, 3, buf);
+	printf("AUD_COUNT %06x\n", ((buf[2] & 0xf) << 16) | (buf[1] << 8) | buf[0]);
+	printf("AUD_LOCK_FREQ_SHIFT %d\n", buf[2] >> 4);
+
 	writereg(dev_handle, 0x0048, 0xffffffff);
 
 	gpio_dir(dev_handle, 0xffffffff,0x00000088);
@@ -722,6 +734,24 @@ int main(int argc, char *argv[])
 	startenc(dev_handle);
 
 	inputsel(dev_handle, input);
+
+	addr = 0x108;
+	cmdbuf[0] = 0x0f;
+	cmdbuf[1] = 0x04;
+	cmdbuf[2] = 0x08;
+	cmdbuf[3] = 0x1e;
+	i2cwrite(dev_handle, addr, 4, cmdbuf);
+
+	addr = 0x110;
+	cmdbuf[0] = 0xf0;
+	cmdbuf[1] = 0x07;
+	cmdbuf[2] = 0x2a;
+	cmdbuf[3] = 0x01;
+	i2cwrite(dev_handle, addr, 4, cmdbuf);
+
+	addr = 0x127;
+	cmdbuf[0] = 0x54;
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
 
 	// Pin Control 2
 	addr = 0x115;
