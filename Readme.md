@@ -1,15 +1,28 @@
+This is NTSC caputure program use CONEXNT usb module on Mac OS X.
 
-./ezfwcut.rb p2usbwdm.sys
+We need firmware in windows driver. This is extract.
 
-./cxfwcut.rb p2usbwdm.sys
+% ./ezfwcut.rb p2usbwdm.sys
 
-GV-MDVD3
+% ./cxfwcut.rb p2usbwdm.sys
 
-Ezload -v 0x04b4 -p 0x8613 -n -F -r -f ez173280.bin
+This program use libusb.dylib. Build libusb and copy dylib in this dirctory.
 
-PC-MDVD/U2
+% install_name_tool -id @executable_path/libusb.dylib libusb.dylib
 
-Ezload -v 0x04b4 -p 0x8613 -n -F -r -f ez163280.bin
+Do EZ-USB firmware download by Ezloader
 
-./mpegcapt cx83280.bin test.mpeg
+https://github.com/yamori813/Ezloader_OSX
+
+for GV-MDVD3
+
+% Ezload -v 0x04b4 -p 0x8613 -n -F -r -f ez173280.bin
+
+for  PC-MDVD/U2
+
+% Ezload -v 0x04b4 -p 0x8613 -n -F -r -f ez163280.bin
+
+Caputure.
+
+% ./mpegcapt cx83280.bin test.mpeg
 
