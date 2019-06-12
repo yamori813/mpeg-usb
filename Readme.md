@@ -26,3 +26,4 @@ Caputure.
 
 % ./mpegcapt cx83280.bin test.mpeg
 
+stop to ^c
