@@ -601,6 +601,7 @@ int main(int argc, char *argv[])
 		    (desc.idVendor == 0x0411 && desc.idProduct == 0x0065)) {
 			vid = desc.idVendor;
 			pid = desc.idProduct;
+			break;
 		}
 	}
 	if (vid == -1) {
