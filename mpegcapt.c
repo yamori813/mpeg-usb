@@ -735,18 +735,33 @@ int main(int argc, char *argv[])
 
 	inputsel(dev_handle, input);
 
+	/*
+	 * calculate pll value refered
+	 * CX25836/7 Video Decoder Data sheet 3.15 PLL Programing
+	 */
+
+	int pll_frac, pll_int, pll_post;
+	float  pll_tmp;
+
+	pll_int = 0x08;
+	pll_post = 0x1e;
+
+	pll_tmp = (0.032 * 256) * pll_post / 28.636360 - pll_int;
+	pll_frac = (1 << 25) * pll_tmp;
+	printf("Aux PLL Fractional %x\n", pll_frac);
+
 	addr = 0x108;
 	cmdbuf[0] = 0x0f;
 	cmdbuf[1] = 0x04;
-	cmdbuf[2] = 0x08;
-	cmdbuf[3] = 0x1e;
+	cmdbuf[2] = pll_int;
+	cmdbuf[3] = pll_post;
 	i2cwrite(dev_handle, addr, 4, cmdbuf);
 
 	addr = 0x110;
-	cmdbuf[0] = 0xf0;
-	cmdbuf[1] = 0x07;
-	cmdbuf[2] = 0x2a;
-	cmdbuf[3] = 0x01;
+	cmdbuf[0] = pll_frac & 0xff;
+	cmdbuf[1] = (pll_frac >> 8) & 0xff;
+	cmdbuf[2] = (pll_frac >> 16) & 0xff;
+	cmdbuf[3] = (pll_frac >> 24) & 0xff;
 	i2cwrite(dev_handle, addr, 4, cmdbuf);
 
 	addr = 0x127;
