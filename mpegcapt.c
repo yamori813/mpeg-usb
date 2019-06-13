@@ -658,9 +658,6 @@ int main(int argc, char *argv[])
 	i2cread(dev_handle, addr, 1, buf);
 	printf("I2C read Video Decoder Core General Status 2(%x) %x\n", addr, buf[0]);
 
-	addr = 0x127;
-	i2cread(dev_handle, addr, 1, buf);
-	printf("Pin Configuration 12 %02x\n", buf[0]);
 	addr = 0x128;
 	i2cread(dev_handle, addr, 3, buf);
 	printf("VID_COUNT %06x\n", (buf[2] << 16) | (buf[1] << 8) | buf[0]);
@@ -765,8 +762,9 @@ int main(int argc, char *argv[])
 	i2cwrite(dev_handle, addr, 4, cmdbuf);
 
 	addr = 0x127;
-	cmdbuf[0] = 0x54;
+	cmdbuf[0] = (1 << 6) | (int)( 256.0/384.0 * pll_post);
 	i2cwrite(dev_handle, addr, 1, cmdbuf);
+	printf("Pin Configuration 12 %02x\n", cmdbuf[0]);
 
 	// Pin Control 2
 	addr = 0x115;
