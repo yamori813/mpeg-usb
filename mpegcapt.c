@@ -577,11 +577,11 @@ int main(int argc, char *argv[])
 	int i;
 	int vid, pid;
 	int reg;
-	int input = 0;
+	int input = 1;
 	int fileoff = 0;
 
-	if (argc == 4 && strcmp(argv[1], "-s") == 0) {
-		input = 1;
+	if (argc == 4 && strcmp(argv[1], "-c") == 0) {
+		input = 0;
 		fileoff = 1;
 	} else if (argc != 3) {
 		printf("usage: mpegcapt <cx firmware> <mpeg file>\n");
