@@ -584,7 +584,7 @@ int main(int argc, char *argv[])
 		input = 0;
 		fileoff = 1;
 	} else if (argc != 3) {
-		printf("usage: mpegcapt <cx firmware> <mpeg file>\n");
+		printf("usage: mpegcapt [-c] <cx firmware> <output mpeg file>\n");
 		exit(-1);
 	}
 
