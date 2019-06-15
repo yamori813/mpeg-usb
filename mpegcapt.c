@@ -544,6 +544,47 @@ void inputsel(libusb_device_handle *dev, int in)
 	i2cwrite(dev_handle, addr, 1, cmdbuf);
 }
 
+void audioinit(libusb_device_handle *dev)
+{
+	unsigned char cmdbuf[128];
+	int addr;
+	int pll_frac, pll_int, pll_post;
+	float  pll_tmp;
+	float sample;
+
+	/*
+	 * calculate pll value refered
+	 * CX25836/7 Video Decoder Data sheet 3.15 PLL Programing
+	 */
+
+	sample = 32.0;
+	pll_int = 0x08;
+	pll_post = 0x1e;
+
+	pll_tmp = (sample * 256) * pll_post / 28636.360 - pll_int;
+	pll_frac = (1 << 25) * pll_tmp;
+	printf("Aux PLL Fractional %x\n", pll_frac);
+
+	addr = 0x108;
+	cmdbuf[0] = 0x0f;
+	cmdbuf[1] = 0x04;
+	cmdbuf[2] = pll_int;
+	cmdbuf[3] = pll_post;
+	i2cwrite(dev_handle, addr, 4, cmdbuf);
+
+	addr = 0x110;
+	cmdbuf[0] = pll_frac & 0xff;
+	cmdbuf[1] = (pll_frac >> 8) & 0xff;
+	cmdbuf[2] = (pll_frac >> 16) & 0xff;
+	cmdbuf[3] = (pll_frac >> 24) & 0xff;
+	i2cwrite(dev_handle, addr, 4, cmdbuf);
+
+	addr = 0x127;
+	cmdbuf[0] = (1 << 6) | (int)( 256.0/384.0 * pll_post);
+	i2cwrite(dev_handle, addr, 1, cmdbuf);
+	printf("Pin Configuration 12 %02x\n", cmdbuf[0]);
+}
+
 void swapbyte(unsigned char *buf, int size)
 {
 	int i;
@@ -733,39 +774,7 @@ int main(int argc, char *argv[])
 
 	inputsel(dev_handle, input);
 
-	/*
-	 * calculate pll value refered
-	 * CX25836/7 Video Decoder Data sheet 3.15 PLL Programing
-	 */
-
-	int pll_frac, pll_int, pll_post;
-	float  pll_tmp;
-
-	pll_int = 0x08;
-	pll_post = 0x1e;
-
-	pll_tmp = (0.032 * 256) * pll_post / 28.636360 - pll_int;
-	pll_frac = (1 << 25) * pll_tmp;
-	printf("Aux PLL Fractional %x\n", pll_frac);
-
-	addr = 0x108;
-	cmdbuf[0] = 0x0f;
-	cmdbuf[1] = 0x04;
-	cmdbuf[2] = pll_int;
-	cmdbuf[3] = pll_post;
-	i2cwrite(dev_handle, addr, 4, cmdbuf);
-
-	addr = 0x110;
-	cmdbuf[0] = pll_frac & 0xff;
-	cmdbuf[1] = (pll_frac >> 8) & 0xff;
-	cmdbuf[2] = (pll_frac >> 16) & 0xff;
-	cmdbuf[3] = (pll_frac >> 24) & 0xff;
-	i2cwrite(dev_handle, addr, 4, cmdbuf);
-
-	addr = 0x127;
-	cmdbuf[0] = (1 << 6) | (int)( 256.0/384.0 * pll_post);
-	i2cwrite(dev_handle, addr, 1, cmdbuf);
-	printf("Pin Configuration 12 %02x\n", cmdbuf[0]);
+	audioinit(dev_handle);
 
 	// Pin Control 2
 	addr = 0x115;
