@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Hiroki Mori
+ * Copyright (c) 2018-2019 Hiroki Mori
  *
  */
 
@@ -306,7 +306,7 @@ void getverenc(libusb_device_handle *dev)
 		printf("get version error\n");
 }
 
-void confenc(libusb_device_handle *dev)
+void confenc(libusb_device_handle *dev, int sample)
 {
 	int data[16];
 	int para[16];
@@ -395,7 +395,17 @@ void confenc(libusb_device_handle *dev)
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
 
-	para[0] = 0x40ba;   // 32K
+	switch(sample) {
+		case 32000:
+			para[0] = 0x40b8 | 2;   // 32K
+			break;
+		case 44100:
+			para[0] = 0x40b8 | 0;   // 44.1K
+			break;
+		case 48000:
+			para[0] = 0x40b8 | 1;   // 48K
+			break;
+	}
 	mkcmd(data, 0xbd, para, 1);   // CX2341X_ENC_SET_AUDIO_PROPERTIES
 	if (enccmd(dev, data, sizeof(data)) != 0)
 		printf("confenc error\n");
@@ -544,25 +554,37 @@ void inputsel(libusb_device_handle *dev, int in)
 	i2cwrite(dev_handle, addr, 1, cmdbuf);
 }
 
-void audioinit(libusb_device_handle *dev)
+void audioinit(libusb_device_handle *dev, int sample)
 {
 	unsigned char cmdbuf[128];
 	int addr;
 	int pll_frac, pll_int, pll_post;
-	float  pll_tmp;
-	float sample;
+	double pll_tmp;
 
 	/*
-	 * calculate pll value refered
-	 * CX25836/7 Video Decoder Data sheet 3.15 PLL Programing
+	  PLL calucrate documented at datasheet 3.15.
+	  But I can't calucrate pll_frac by this page method.
+	  I use fixed value.
 	 */
 
-	sample = 32.0;
-	pll_int = 0x08;
-	pll_post = 0x1e;
-
-	pll_tmp = (sample * 256) * pll_post / 28636.360 - pll_int;
-	pll_frac = (1 << 25) * pll_tmp;
+	printf("Set Audio Sampling %d\n", sample);
+	switch (sample) {
+		case 32000:
+			pll_int = 0x08;
+			pll_post = 0x1e;
+			pll_frac = 0x012a0869;
+			break;
+		case 44100:
+			pll_int = 0x09;
+			pll_post = 0x18;
+			pll_frac = 0x00ec6bd6;
+			break;
+		case 48000:
+			pll_int = 0x0a;
+			pll_post = 0x18;
+			pll_frac = 0x0098d6e5;
+			break;
+	}
 	printf("Aux PLL Fractional %x\n", pll_frac);
 
 	addr = 0x108;
@@ -619,12 +641,27 @@ int main(int argc, char *argv[])
 	int vid, pid;
 	int reg;
 	int input = 1;
-	int fileoff = 0;
+	int sample = 48000;
+	int ch;
+	extern int optind;
 
-	if (argc == 4 && strcmp(argv[1], "-c") == 0) {
-		input = 0;
-		fileoff = 1;
-	} else if (argc != 3) {
+	while ((ch = getopt(argc, argv, "34c")) != -1)
+		switch (ch) {
+			case 'c':
+				input = 0;
+				break;
+			case '3':
+				sample = 32000;
+				break;
+			case '4':
+				sample = 44100;
+				break;
+		}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 2) {
 		printf("usage: mpegcapt [-c] <cx firmware> <output mpeg file>\n");
 		exit(-1);
 	}
@@ -738,10 +775,10 @@ int main(int argc, char *argv[])
 	res = libusb_bulk_transfer(dev_handle, 0x01, cmdbuf, 2, &trns, 0);
 
 	unsigned char data[0x8000];
-	int fd = open(argv[1 + fileoff], O_RDONLY);
+	int fd = open(argv[0], O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "** Couldn't open file for reading: %s\n",
-		    argv[1 + fileoff]);
+		    argv[0]);
 		exit(-1);
 	} else {
 		ssize_t n;
@@ -769,12 +806,12 @@ int main(int argc, char *argv[])
 	writereg(dev_handle, 0x0048, 0xbfffffff);
 
 	preconfenc(dev_handle);
-	confenc(dev_handle);
+	confenc(dev_handle, sample);
 	startenc(dev_handle);
 
 	inputsel(dev_handle, input);
 
-	audioinit(dev_handle);
+	audioinit(dev_handle, sample);
 
 	// Pin Control 2
 	addr = 0x115;
@@ -806,7 +843,7 @@ int main(int argc, char *argv[])
 	else
 		printf("usv stream start error\n");
 
-	dumpfd = open(argv[2 + fileoff], O_RDWR | O_CREAT, 0644);
+	dumpfd = open(argv[1], O_RDWR | O_CREAT, 0644);
 
 	while (1)
 		libusb_handle_events(ctx);
